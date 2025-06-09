@@ -31,8 +31,12 @@ export async function listSubAgents(req, res) {
         .json({ message: "Only agents can access subagents." });
     }
 
-    // Return all subagents regardless of parentAgent
-    const subs = await User.find({ role: "subagent" }).select("-password");
+    // ✅ Only return subagents created by the current agent
+    const subs = await User.find({
+      role: "subagent",
+      parentAgent: req.user._id,
+    }).select("-password");
+
     res.json(subs);
   } catch (err) {
     console.error("Error fetching subagents:", err);
