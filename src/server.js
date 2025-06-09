@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.js";
 import agentsRouter from "./routes/agents.js";
 import tasksRouter from "./routes/tasks.js";
 import cors from "cors";
+import subAgentsRouter from "./routes/subagents.js";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/agents", agentsRouter);
 app.use("/api/tasks", tasksRouter);
+app.use("/api/subagents", subAgentsRouter);
 
 //server
 const PORT = process.env.PORT || 5000;

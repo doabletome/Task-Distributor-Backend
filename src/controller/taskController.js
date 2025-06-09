@@ -14,6 +14,8 @@ export async function parseAndDistribute(req, res) {
     return res.status(400).json({ message: "file required" });
   }
 
+  const role = req.user.role;
+
   // parse csv
   parse(
     req.file.buffer,
@@ -31,37 +33,71 @@ export async function parseAndDistribute(req, res) {
       }
 
       //getting all the agents
-      const agents = await User.find({ role: "agent" });
-      //totol number of records
-      const N = records.length;
-      // minimum number to records that each agents will have
-      const base = Math.floor(N / agents.length);
-      // extra remaining records
-      let extra = N % agents.length;
-      //pointer to iterate over records
-      let idx = 0;
-      // empty arr to later push in DB
-      const toinsert = [];
+      if (role === "admin") {
+        const agents = await User.find({ role: "agent" });
+        //totol number of records
+        const N = records.length;
+        // minimum number to records that each agents will have
+        const base = Math.floor(N / agents.length);
+        // extra remaining records
+        let extra = N % agents.length;
+        //pointer to iterate over records
+        let idx = 0;
+        // empty arr to later push in DB
+        const toinsert = [];
 
-      // iterating over all the agents and distributing records
-      for (let agent of agents) {
-        const count = base + (extra-- > 0 ? 1 : 0);
-        const slice = records.slice(idx, idx + count);
+        // iterating over all the agents and distributing records
+        for (let agent of agents) {
+          const count = base + (extra-- > 0 ? 1 : 0);
+          const slice = records.slice(idx, idx + count);
 
-        slice.forEach((r) => {
-          toinsert.push({
-            firstName: r.FirstName,
-            phone: r.Phone,
-            notes: r.Notes || "",
-            assignedTo: agent._id,
+          slice.forEach((r) => {
+            toinsert.push({
+              firstName: r.FirstName,
+              phone: r.Phone,
+              notes: r.Notes || "",
+              assignedTo: agent._id,
+            });
           });
-        });
 
-        idx += count;
+          idx += count;
+        }
+
+        await TaskItem.insertMany(toinsert);
+        res.json({ distributed: toinsert.length });
+      } else {
+        const agents = await User.find({ role: "subagent" });
+        //totol number of records
+        const N = records.length;
+        // minimum number to records that each agents will have
+        const base = Math.floor(N / agents.length);
+        // extra remaining records
+        let extra = N % agents.length;
+        //pointer to iterate over records
+        let idx = 0;
+        // empty arr to later push in DB
+        const toinsert = [];
+
+        // iterating over all the agents and distributing records
+        for (let agent of agents) {
+          const count = base + (extra-- > 0 ? 1 : 0);
+          const slice = records.slice(idx, idx + count);
+
+          slice.forEach((r) => {
+            toinsert.push({
+              firstName: r.FirstName,
+              phone: r.Phone,
+              notes: r.Notes || "",
+              assignedTo: agent._id,
+            });
+          });
+
+          idx += count;
+        }
+
+        await TaskItem.insertMany(toinsert);
+        res.json({ distributed: toinsert.length });
       }
-
-      await TaskItem.insertMany(toinsert);
-      res.json({ distributed: toinsert.length });
     }
   );
 }
@@ -78,6 +114,10 @@ export async function getByAgent(req, res) {
       return res.json(tasks);
     }
 
+    if (role === "subagent") {
+      const tasks = await TaskItem.find({ assignedTo: userId }).lean();
+      return res.json(tasks);
+    }
     //if user role is admin , we return all the agents and their assigned tasks
     if (role === "admin") {
       // Admin: fetch every agent and their tasks
